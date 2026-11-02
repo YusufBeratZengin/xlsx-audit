@@ -10,31 +10,22 @@ pre-commit kancasında veya konteynerde çalışır; Excel, COM otomasyonu ya da
 kurulu olması gerekmez.
 
 ```console
-$ xlsx-audit check examples/fake_financial_model.xlsx
-✖ [FAIL] fake_financial_model.xlsx audit failed (1 error, 4 warnings)
-
-- [ERROR] Gelirler!E15: Broken formula reference found (#REF!). (BROKEN_REFERENCE)
-- [WARNING] <workbook>: External workbook reference: …/Budget_2025.xlsx (EXTERNAL_LINK)
-- [WARNING] Giderler!B8: Hard-coded numeric constant 1.2 in formula. (MAGIC_NUMBER_IN_FORMULA)
-- [WARNING] Giderler!D11: Range Giderler!C8:C9 ends before the filled cell C10 (25). (OMITTED_CELL_WARNING)
-- [WARNING] Notlar: Sheet is veryHidden: invisible in the Excel UI. (VERY_HIDDEN_SHEET)
-
-5 findings · 3 sheets · 15 cells · 4 formulas
-```
-
-Türkçe mesajlar için sonuna `--lang tr` ekleyin:
-
-```console
 $ xlsx-audit check examples/fake_financial_model.xlsx --lang tr
 ✖ [FAIL] fake_financial_model.xlsx denetimi başarısız (1 Hata, 4 Uyarı)
 
 - [HATA] Gelirler!E15: Kırık formül referansı bulundu (#REF!). (BROKEN_REFERENCE)
 - [UYARI] <workbook>: Dış çalışma kitabı bağlantısı: …/Budget_2025.xlsx (EXTERNAL_LINK)
-...
+- [UYARI] Giderler!B8: Formül içine gömülü sabit sayı: 1.2. (MAGIC_NUMBER_IN_FORMULA)
+- [UYARI] Giderler!D11: Giderler!C8:C9 toplam aralığı dolu hücreyi kapsamıyor: C10 (25). (OMITTED_CELL_WARNING)
+- [UYARI] Notlar: Sayfa veryHidden olarak gizlenmiş: Excel arayüzünde görünmez. (VERY_HIDDEN_SHEET)
+
+5 bulgu · 3 sayfa · 15 hücre · 4 formül
 ```
 
-*(Bu çıktı depodaki `examples/fake_financial_model.xlsx` dosyasından alınmıştır; içindeki
-her değer uydurmadır.)*
+Varsayılan dil İngilizcedir (`--lang en`); yukarıdaki `--lang tr` çıktısının aynısını
+İngilizce almak için seçeneği kaldırmanız yeterli. *(Bu çıktı depodaki
+`examples/fake_financial_model.xlsx` dosyasından alınmıştır; içindeki her değer
+uydurmadır.)*
 
 ## Neden var
 
@@ -147,7 +138,7 @@ GitHub Actions ve Security sekmesine SARIF yükleme:
   with:
     python-version: "3.12"
 - run: pip install xlsx-audit
-- run: xlsx-audit check "modeller/**/*.xlsx" --format sarif -o xlsx-audit.sarif
+- run: xlsx-audit check modeller/*.xlsx --format sarif -o xlsx-audit.sarif
   continue-on-error: true
 - uses: github/codeql-action/upload-sarif@v3
   with:
@@ -193,6 +184,8 @@ denetlenebilir.
   incelemesinin ya da finansal modelin dört göz kontrolünün yerini tutmaz.
 - Tüm sütun başvuruları (`A:A`) ve 20 000 hücreden büyük aralıklar döngü analizi için
   açılmaz; yalnızca böyle bir aralığın arkasına saklanmış döngü gözden kaçar.
+- 64 seviyeden derin iç içe formüller (Excel'in kendi sınırı) ayrıştırılmaz; yığını
+  tüketmesine izin verilmez, `FORMULA_PARSE_ERROR` olarak raporlanır.
 - `IFERROR`/`IF` kısa devreleri ile `INDIRECT`/`OFFSET` dolaylılığı izlenmez.
 - VBA makroları incelenmez ve çalıştırılmaz (`.xlsm` de statik XML olarak okunur).
 - `veryHidden` sayfanın içeriği hücre hücre raporlanmaz; kişisel veri olabileceği için

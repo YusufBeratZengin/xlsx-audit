@@ -10,8 +10,8 @@
 
 Please **do not** open a public issue for a security problem. Use GitHub's private
 reporting form ("Security" tab → "Report a vulnerability") on
-<https://github.com/YusufBeratZengin/xlsx-audit/security/advisories/new>, or email the
-maintainer listed in `pyproject.toml`. Include the version, the operating system and a
+<https://github.com/YusufBeratZengin/xlsx-audit/security/advisories/new>. Include the
+version, the operating system and a
 minimal reproduction (a synthetic `.xlsx` built with `tests/factory.py` is ideal — never a
 real workbook). You can expect an acknowledgement within a week.
 

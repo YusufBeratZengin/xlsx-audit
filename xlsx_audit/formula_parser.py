@@ -439,7 +439,10 @@ def _classify_address(address: str) -> Optional[str]:
 # ------------------------------------------------------------------------- parser
 
 
-MAX_NESTING = 200
+#: Excel itself refuses to nest functions deeper than 64 levels, and every level
+#: costs roughly ten Python frames here; a higher cap would hit Python's own
+#: recursion limit before this check ever fires.
+MAX_NESTING = 64
 
 
 class Parser:
@@ -568,9 +571,7 @@ class Parser:
     def _nested(self, parse: Callable[[], Node]) -> Node:
         self.depth += 1
         if self.depth > MAX_NESTING:
-            raise FormulaSyntaxError(
-                "formula is nested too deeply", self.current.pos, self.formula
-            )
+            raise FormulaSyntaxError("formula is nested too deeply", self.current.pos, self.formula)
         try:
             return parse()
         finally:

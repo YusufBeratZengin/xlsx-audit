@@ -10,7 +10,7 @@ set -u -o pipefail
 cd "$(dirname "${BASH_SOURCE[0]}")/.." || exit 1
 
 PYTHON="${PYTHON:-python3}"
-COVERAGE_MIN="${COVERAGE_MIN:-85}"
+COVERAGE_MIN="${COVERAGE_MIN:-87}"
 STATUS=0
 
 step() {

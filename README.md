@@ -135,7 +135,7 @@ GitHub Actions, with SARIF upload to the Security tab:
   with:
     python-version: "3.12"
 - run: pip install xlsx-audit
-- run: xlsx-audit check "models/**/*.xlsx" --format sarif -o xlsx-audit.sarif
+- run: xlsx-audit check models/*.xlsx --format sarif -o xlsx-audit.sarif
   continue-on-error: true
 - uses: github/codeql-action/upload-sarif@v3
   with:
@@ -180,6 +180,8 @@ evaluated, so a workbook saved by a library that does not cache results is still
   substitute for an audit firm's review or for a four-eyes check of a financial model.
 - Whole-column references (`A:A`) and ranges larger than 20 000 cells are not expanded
   for cycle analysis; a cycle hidden exclusively behind such a reference is missed.
+- Formulas nested deeper than 64 levels (Excel's own nesting limit) are not parsed; they
+  are reported as `FORMULA_PARSE_ERROR` instead of being allowed to exhaust the stack.
 - `IFERROR`/`IF` short-circuits and `INDIRECT`/`OFFSET` indirection are not followed.
 - VBA macros are not inspected or executed (`.xlsm` is treated as static XML too).
 - Text inside a `veryHidden` sheet is reported as a sheet-level finding; cell contents

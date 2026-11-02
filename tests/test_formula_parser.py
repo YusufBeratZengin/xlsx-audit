@@ -185,3 +185,17 @@ def test_shift_formula_supports_ranges_and_functions() -> None:
 def test_to_formula_keeps_arrays_and_missing() -> None:
     tree = parse_formula("={1,2;3,4}")
     assert to_formula(tree) == "{1,2;3,4}"
+
+
+def test_deeply_nested_parentheses_are_rejected() -> None:
+    deep = "=" + "(" * 250 + "1" + ")" * 250
+    with pytest.raises(FormulaSyntaxError, match="nested too deeply"):
+        parse_formula(deep)
+
+
+def test_moderately_nested_formulas_still_parse() -> None:
+    nested = "=" + "SUM(" * 20 + "A1" + ")" * 20
+    assert isinstance(parse_formula(nested), FuncCall)
+
+    parenthesised = "=" + "(" * 20 + "A1+1" + ")" * 20
+    assert isinstance(parse_formula(parenthesised), BinaryOp)

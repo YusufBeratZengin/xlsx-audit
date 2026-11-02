@@ -46,7 +46,7 @@ jobs:
         run: python -m mypy
 
       - name: Tests with coverage
-        run: python -m pytest -q --cov=xlsx_audit --cov-report=term-missing --cov-report=xml --cov-fail-under=85
+        run: python -m pytest -q --cov=xlsx_audit --cov-report=term-missing --cov-report=xml --cov-fail-under=87
 
       - name: Upload coverage
         if: matrix.os == 'ubuntu-latest' && matrix.python == '3.12'
