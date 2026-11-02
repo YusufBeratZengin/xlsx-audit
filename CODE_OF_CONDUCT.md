@@ -50,9 +50,9 @@ public spaces.
 
 ## Enforcement
 
-Instances of abusive, harassing or otherwise unacceptable behaviour may be reported to the
-maintainer through the contact address in `pyproject.toml` or via a private GitHub
-message. All complaints will be reviewed and investigated promptly and fairly, and the
+Instances of abusive, harassing or otherwise unacceptable behaviour may be reported
+privately to the maintainer ([@YusufBeratZengin](https://github.com/YusufBeratZengin)) via
+GitHub. All complaints will be reviewed and investigated promptly and fairly, and the
 privacy and security of the reporter will be respected.
 
 ## Enforcement guidelines
