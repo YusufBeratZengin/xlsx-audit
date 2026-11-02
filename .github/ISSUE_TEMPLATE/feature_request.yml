@@ -1,0 +1,37 @@
+name: Feature request
+description: Propose a rule, a report format or an integration
+title: "feat: "
+labels: ["enhancement"]
+body:
+  - type: textarea
+    id: problem
+    attributes:
+      label: The problem
+      description: What kind of spreadsheet mistake should the tool catch, or what is missing today?
+    validations:
+      required: true
+  - type: textarea
+    id: proposal
+    attributes:
+      label: Proposed behaviour
+      description: CLI/API shape, finding code and severity if it is a rule.
+      placeholder: |
+        Code: MAGIC_NUMBER_IN_FORMULA
+        Severity: warning
+        Example: =B2*0.18 should be flagged, =SUM(A1:A3) should not.
+    validations:
+      required: true
+  - type: textarea
+    id: alternatives
+    attributes:
+      label: Alternatives considered
+    validations:
+      required: false
+  - type: checkboxes
+    id: constraints
+    attributes:
+      label: Constraints
+      options:
+        - label: This does not need Excel, COM or LibreOffice at run time
+        - label: This does not need a new runtime dependency (or I explained why it does)
+        - label: This does not require bundling an official rate, tax or legal value

@@ -1,0 +1,48 @@
+name: Bug report
+description: Something in xlsx-audit behaved unexpectedly
+title: "bug: "
+labels: ["bug"]
+body:
+  - type: markdown
+    attributes:
+      value: |
+        Thanks for the report. **Do not attach a real spreadsheet.** Rebuild the case with
+        `tests/factory.py` or strip names, numbers and links first.
+  - type: textarea
+    id: what-happened
+    attributes:
+      label: What happened?
+      description: The command you ran and the output you got.
+      placeholder: |
+        xlsx-audit check model.xlsx
+        ...actual output...
+    validations:
+      required: true
+  - type: textarea
+    id: expected
+    attributes:
+      label: What did you expect?
+    validations:
+      required: true
+  - type: textarea
+    id: reproduction
+    attributes:
+      label: Minimal reproduction
+      description: The smallest workbook or Python snippet that shows the problem.
+      render: python
+    validations:
+      required: true
+  - type: input
+    id: version
+    attributes:
+      label: xlsx-audit version
+      placeholder: "0.1.0 (`xlsx-audit --version`)"
+    validations:
+      required: true
+  - type: input
+    id: environment
+    attributes:
+      label: Python and OS
+      placeholder: "Python 3.12.4 on Ubuntu 24.04"
+    validations:
+      required: true

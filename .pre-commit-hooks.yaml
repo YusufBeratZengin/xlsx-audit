@@ -1,0 +1,19 @@
+# Pre-commit hook definition.
+#
+# Users add this repository to their own .pre-commit-config.yaml:
+#
+#   repos:
+#     - repo: https://github.com/YusufBeratZengin/xlsx-audit
+#       rev: v0.1.0
+#       hooks:
+#         - id: xlsx-audit
+#
+# The hook is skipped automatically when no .xlsx file is part of the commit.
+- id: xlsx-audit
+  name: xlsx-audit (broken formulas, magic numbers, hidden sheets)
+  description: Statically audit staged Excel workbooks before they are committed.
+  entry: xlsx-audit check
+  language: python
+  files: '\.(xlsx|xlsm)$'
+  pass_filenames: true
+  require_serial: true

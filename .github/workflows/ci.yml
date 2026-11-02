@@ -1,0 +1,105 @@
+name: CI
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+concurrency:
+  group: ci-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  test:
+    name: ${{ matrix.os }} / py${{ matrix.python }}
+    runs-on: ${{ matrix.os }}
+    strategy:
+      fail-fast: false
+      matrix:
+        os: [ubuntu-latest, windows-latest]
+        python: ["3.10", "3.12", "3.13"]
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Set up Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: ${{ matrix.python }}
+          cache: pip
+
+      - name: Install
+        run: |
+          python -m pip install --upgrade pip
+          python -m pip install -e ".[dev]"
+
+      - name: Lint
+        run: python -m ruff check .
+
+      - name: Format check
+        run: python -m ruff format --check .
+
+      - name: Type check
+        run: python -m mypy
+
+      - name: Tests with coverage
+        run: python -m pytest -q --cov=xlsx_audit --cov-report=term-missing --cov-report=xml --cov-fail-under=85
+
+      - name: Upload coverage
+        if: matrix.os == 'ubuntu-latest' && matrix.python == '3.12'
+        uses: actions/upload-artifact@v4
+        with:
+          name: coverage-xml
+          path: coverage.xml
+          if-no-files-found: warn
+
+  example:
+    name: CLI smoke test (example workbook)
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+      - name: Install
+        run: python -m pip install -e .
+      - name: Rebuild the synthetic example
+        run: python scripts/make_example.py
+      - name: The example must fail with exactly the documented findings
+        shell: bash
+        run: |
+          set +e
+          xlsx-audit check examples/fake_financial_model.xlsx --format json -o report.json
+          status=$?
+          set -e
+          test "$status" -eq 1
+          python - <<'PY'
+          import json
+          report = json.load(open("report.json", encoding="utf-8"))
+          codes = report["summary"]["by_code"]
+          expected = {
+              "BROKEN_REFERENCE": 1,
+              "EXTERNAL_LINK": 1,
+              "MAGIC_NUMBER_IN_FORMULA": 1,
+              "OMITTED_CELL_WARNING": 1,
+              "VERY_HIDDEN_SHEET": 1,
+          }
+          assert codes == expected, (codes, expected)
+          assert report["status"] == "fail"
+          print("example report matches the documented findings")
+          PY
+      - name: A clean workbook must pass
+        shell: bash
+        run: |
+          python - <<'PY'
+          from pathlib import Path
+          from tests.factory import build_workbook, simple_sheet
+          build_workbook(
+              Path("clean.xlsx"),
+              [simple_sheet("Sheet1", {"A1": {"v": 1}, "A2": {"f": "A1+1", "v": 2}})],
+          )
+          PY
+          xlsx-audit check clean.xlsx
