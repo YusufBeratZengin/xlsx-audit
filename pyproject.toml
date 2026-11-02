@@ -1,0 +1,114 @@
+[build-system]
+requires = ["setuptools>=68"]
+build-backend = "setuptools.build_meta"
+
+[project]
+name = "xlsx-audit"
+version = "0.1.0"
+description = "Audit Excel spreadsheets for broken formulas, circular references, magic numbers, and leaks."
+readme = "README.md"
+requires-python = ">=3.10"
+license = { text = "MIT" }
+authors = [{ name = "YusufBeratZengin" }]
+keywords = [
+    "excel",
+    "xlsx",
+    "audit",
+    "finance",
+    "formula-checker",
+    "linter",
+    "spreadsheet",
+    "ooxml",
+]
+classifiers = [
+    "Development Status :: 4 - Beta",
+    "Environment :: Console",
+    "Intended Audience :: Financial and Insurance Industry",
+    "License :: OSI Approved :: MIT License",
+    "Operating System :: OS Independent",
+    "Programming Language :: Python :: 3",
+    "Programming Language :: Python :: 3 :: Only",
+    "Topic :: Office/Business :: Financial :: Spreadsheet",
+    "Topic :: Software Development :: Quality Assurance",
+    "Typing :: Typed",
+]
+dependencies = [
+    # Hardened XML parsing for untrusted spreadsheet files (XXE / entity
+    # expansion defences). Pure Python, no transitive dependencies.
+    "defusedxml>=0.7.1",
+]
+
+[project.optional-dependencies]
+dev = [
+    "pytest>=7.4",
+    "pytest-cov>=4.1",
+    "ruff>=0.6",
+    "mypy>=1.10",
+]
+
+[project.urls]
+Homepage = "https://github.com/YusufBeratZengin/xlsx-audit"
+Repository = "https://github.com/YusufBeratZengin/xlsx-audit"
+Issues = "https://github.com/YusufBeratZengin/xlsx-audit/issues"
+Changelog = "https://github.com/YusufBeratZengin/xlsx-audit/blob/main/CHANGELOG.md"
+
+[project.scripts]
+xlsx-audit = "xlsx_audit.cli:main"
+
+[tool.setuptools.packages.find]
+include = ["xlsx_audit*"]
+
+[tool.setuptools.package-data]
+xlsx_audit = ["py.typed"]
+
+[tool.pytest.ini_options]
+minversion = "7.0"
+testpaths = ["tests"]
+addopts = "-ra"
+filterwarnings = ["error"]
+
+[tool.coverage.run]
+branch = true
+source = ["xlsx_audit"]
+omit = ["xlsx_audit/__main__.py"]
+
+[tool.coverage.report]
+show_missing = true
+skip_covered = false
+exclude_lines = [
+    "pragma: no cover",
+    "if TYPE_CHECKING:",
+    "raise NotImplementedError",
+    "\\.\\.\\.",
+]
+
+[tool.ruff]
+line-length = 100
+target-version = "py310"
+src = ["xlsx_audit", "tests"]
+
+[tool.ruff.lint]
+select = ["E", "F", "W", "I", "UP", "B", "C4", "SIM", "RUF", "T20"]
+# The package still spells annotations with typing.Dict/List on purpose: the
+# typing aliases render better in generated docs and the codebase is uniform.
+ignore = ["E501", "B008", "RUF001", "RUF002", "RUF003", "UP006", "UP035", "UP045"]
+
+[tool.ruff.lint.per-file-ignores]
+"tests/*" = ["T20"]
+"scripts/*" = ["T20"]
+"xlsx_audit/cli.py" = ["T20"]
+
+[tool.ruff.format]
+quote-style = "double"
+
+[tool.mypy]
+python_version = "3.10"
+files = ["xlsx_audit"]
+strict = true
+warn_unused_ignores = true
+show_error_codes = true
+pretty = true
+
+[[tool.mypy.overrides]]
+module = ["defusedxml.*"]
+ignore_missing_imports = true
