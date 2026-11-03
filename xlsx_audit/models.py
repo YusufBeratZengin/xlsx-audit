@@ -160,6 +160,8 @@ class ExternalLink:
     part: str
     target: str
     kind: str = "externalLink"
+    sheet: Optional[str] = None
+    cell: Optional[str] = None
 
     @property
     def is_file_path(self) -> bool:

@@ -1,9 +1,11 @@
 from __future__ import annotations
 
+import json
 from pathlib import Path
 
 import pytest
 from xlsx_audit import Severity, audit_workbook
+from xlsx_audit.sarif_reporter import sarif_document
 
 from factory import build_workbook, simple_sheet
 
@@ -154,8 +156,123 @@ def test_external_link_and_url(tmp_path: Path) -> None:
     assert "EXTERNAL_LINK" in codes(report)
     urls = by_code(report, "EXTERNAL_URL")
     assert urls and all(u.severity is Severity.ERROR for u in urls)
-    assert not any("token" in (u.message + (u.value or "")) for u in urls)
-    assert not any("Users" in d.message for d in report.diagnostics)
+    assert not any("token" in (u.message + (u.value or "") + (u.formula or "")) for u in urls)
+    assert not any(
+        "Users" in (d.message + (d.value or "") + (d.formula or "")) for d in report.diagnostics
+    )
+    dumped = json.dumps(report.to_dict())
+    assert "token=fake" not in dumped
+    assert "C:/Users" not in dumped
+
+
+def test_external_formula_book_path_masked(tmp_path: Path) -> None:
+    path = build_workbook(
+        tmp_path / "masked_book.xlsx",
+        [
+            simple_sheet(
+                "Sheet1",
+                {
+                    "A1": {"f": r"[C:\Users\SecretAgent\Confidential.xlsx]Sheet1!A1", "v": 10},
+                    "A2": {
+                        "f": 'WEBSERVICE("https://api.internal.corp/query?token=secret123&user=admin")',
+                        "v": 0,
+                    },
+                },
+            )
+        ],
+    )
+    report = audit_workbook(path)
+    link_findings = by_code(report, "EXTERNAL_LINK")
+    assert len(link_findings) == 1
+    lf = link_findings[0]
+    assert lf.location == "Sheet1!A1"
+    assert lf.value == "…/Confidential.xlsx"
+    assert "SecretAgent" not in lf.message
+    assert "SecretAgent" not in (lf.formula or "")
+    assert lf.formula == "=[…/Confidential.xlsx]Sheet1!A1"
+
+    url_findings = by_code(report, "EXTERNAL_URL")
+    assert len(url_findings) == 2
+    for uf in url_findings:
+        assert uf.location == "Sheet1!A2"
+        assert uf.severity is Severity.ERROR
+        assert "secret123" not in uf.message
+        assert "secret123" not in (uf.value or "")
+        assert "secret123" not in (uf.formula or "")
+        assert uf.formula == '=WEBSERVICE("https://api.internal.corp/query")'
+
+    # Verify JSON and SARIF do not leak sensitive paths or tokens
+    json_text = json.dumps(report.to_dict())
+    assert "SecretAgent" not in json_text
+    assert "secret123" not in json_text
+
+    sarif_text = json.dumps(sarif_document([report]))
+    assert "SecretAgent" not in sarif_text
+    assert "secret123" not in sarif_text
+
+
+def test_worksheet_hyperlink_detected_and_masked(tmp_path: Path) -> None:
+    path = build_workbook(
+        tmp_path / "ws_links.xlsx",
+        [
+            simple_sheet(
+                "Sheet1",
+                cells={
+                    "B2": {"v": "External Portal"},
+                    "C5": {"v": "Private Budget"},
+                },
+                hyperlinks={"B2": "rId1", "C5": "rId2"},
+                rels={
+                    "rId1": "https://phishing.site/login?redirect=steal&session=abc123xyz",
+                    "rId2": r"file:///C:/Users/victim/SecretPlan.xlsx",
+                },
+            )
+        ],
+    )
+    report = audit_workbook(path)
+    url_findings = by_code(report, "EXTERNAL_URL")
+    assert len(url_findings) == 1
+    uf = url_findings[0]
+    assert uf.location == "Sheet1!B2"
+    assert uf.sheet == "Sheet1"
+    assert uf.cell == "B2"
+    assert uf.severity is Severity.ERROR
+    assert uf.value == "https://phishing.site/login"
+    assert "session=" not in uf.message
+    assert "session=" not in (uf.value or "")
+
+    link_findings = by_code(report, "EXTERNAL_LINK")
+    assert len(link_findings) == 1
+    lf = link_findings[0]
+    assert lf.location == "Sheet1!C5"
+    assert lf.sheet == "Sheet1"
+    assert lf.cell == "C5"
+    assert lf.severity is Severity.WARNING
+    assert lf.value == "…/SecretPlan.xlsx"
+    assert "victim" not in lf.message
+    assert "victim" not in (lf.value or "")
+
+
+def test_worksheet_hyperlink_without_cell_ref(tmp_path: Path) -> None:
+    path = build_workbook(
+        tmp_path / "ws_rels_only.xlsx",
+        [
+            simple_sheet(
+                "Sheet1",
+                cells={"A1": {"v": 1}},
+                rels={"rId1": "https://example.invalid/data?key=topsecret"},
+            )
+        ],
+    )
+    report = audit_workbook(path)
+    url_findings = by_code(report, "EXTERNAL_URL")
+    assert len(url_findings) == 1
+    uf = url_findings[0]
+    assert uf.location == "Sheet1"
+    assert uf.sheet == "Sheet1"
+    assert uf.cell is None
+    assert uf.value == "https://example.invalid/data"
+    assert "topsecret" not in uf.message
 
 
 def test_external_http_link_is_an_error(tmp_path: Path) -> None:

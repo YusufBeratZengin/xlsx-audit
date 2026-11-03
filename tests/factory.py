@@ -64,7 +64,11 @@ def _cell_xml(reference: str, spec: Dict[str, object], shared_index: Optional[in
     return f"<c {' '.join(attributes)}>{children}</c>"
 
 
-def _sheet_xml(cells: Dict[str, Dict[str, object]], shared_strings: List[str]) -> str:
+def _sheet_xml(
+    cells: Dict[str, Dict[str, object]],
+    shared_strings: List[str],
+    hyperlinks: Optional[Dict[str, str]] = None,
+) -> str:
     rows: Dict[int, List[Tuple[int, str]]] = {}
     for reference, spec in cells.items():
         row = int("".join(ch for ch in reference if ch.isdigit()))
@@ -86,9 +90,15 @@ def _sheet_xml(cells: Dict[str, Dict[str, object]], shared_strings: List[str]) -
     for row_number in sorted(rows):
         entries = "".join(xml for _col, xml in sorted(rows[row_number]))
         body.append(f'<row r="{row_number}">{entries}</row>')
+    hl_xml = ""
+    if hyperlinks:
+        hl_entries = "".join(
+            f'<hyperlink ref="{ref}" r:id="{rel_id}"/>' for ref, rel_id in hyperlinks.items()
+        )
+        hl_xml = f"<hyperlinks>{hl_entries}</hyperlinks>"
     return (
         f'<?xml version="1.0" encoding="UTF-8" standalone="yes"?>'
-        f'<worksheet xmlns="{MAIN_NS}"><sheetData>{"".join(body)}</sheetData></worksheet>'
+        f'<worksheet xmlns="{MAIN_NS}" xmlns:r="{REL_NS}"><sheetData>{"".join(body)}</sheetData>{hl_xml}</worksheet>'
     )
 
 
@@ -113,7 +123,9 @@ def build_workbook(
     for _index, sheet in enumerate(sheets, start=1):
         cells = sheet.get("cells", {})
         assert isinstance(cells, dict)
-        sheet_parts.append(_sheet_xml(cells, shared_strings))
+        sheet_hl = sheet.get("hyperlinks")
+        assert sheet_hl is None or isinstance(sheet_hl, dict)
+        sheet_parts.append(_sheet_xml(cells, shared_strings, hyperlinks=sheet_hl))
 
     workbook_rels = [
         f'<Relationship Id="rIdS{index}" Type="{REL_NS}/worksheet" '
@@ -170,6 +182,18 @@ def build_workbook(
     }
     for index, xml in enumerate(sheet_parts, start=1):
         parts[f"xl/worksheets/sheet{index}.xml"] = xml
+        sheet_dict = sheets[index - 1]
+        sheet_rels = sheet_dict.get("rels")
+        if isinstance(sheet_rels, dict) and sheet_rels:
+            rels_entries = [
+                f'<Relationship Id="{rel_id}" Type="{REL_NS}/hyperlink" '
+                f'Target={quoteattr(str(target))} TargetMode="External"/>'
+                for rel_id, target in sheet_rels.items()
+            ]
+            parts[f"xl/worksheets/_rels/sheet{index}.xml.rels"] = (
+                f'<?xml version="1.0" encoding="UTF-8" standalone="yes"?>'
+                f'<Relationships xmlns="{PKG_REL_NS}">{"".join(rels_entries)}</Relationships>'
+            )
     if shared_strings:
         parts["xl/sharedStrings.xml"] = shared_strings_xml or (
             f'<?xml version="1.0" encoding="UTF-8" standalone="yes"?>'
@@ -210,8 +234,16 @@ def simple_sheet(
     name: str = "Sheet1",
     cells: Optional[Dict[str, Dict[str, object]]] = None,
     state: str = "visible",
+    hyperlinks: Optional[Dict[str, str]] = None,
+    rels: Optional[Dict[str, str]] = None,
 ) -> Dict[str, object]:
-    return {"name": name, "state": state, "cells": cells or {}}
+    return {
+        "name": name,
+        "state": state,
+        "cells": cells or {},
+        "hyperlinks": hyperlinks or {},
+        "rels": rels or {},
+    }
 
 
 def write_bytes(path: Path, payload: bytes) -> Path:

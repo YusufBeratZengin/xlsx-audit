@@ -52,6 +52,21 @@ def mask_target(target: str) -> str:
     return name
 
 
+def _mask_book_in_formula(formula: str, book: str) -> str:
+    """Replace an external workbook path inside a formula string with its masked target."""
+    target = mask_target(book)
+    if target == book:
+        return formula
+    out = formula.replace(f"[{book}]", f"[{target}]").replace(book, target)
+    forward = book.replace("\\", "/")
+    if forward != book:
+        out = out.replace(f"[{forward}]", f"[{target}]").replace(forward, target)
+    backward = book.replace("/", "\\")
+    if backward != book:
+        out = out.replace(f"[{backward}]", f"[{target}]").replace(backward, target)
+    return out
+
+
 class ExternalLinksRule(Rule):
     name = "external_links"
     description = "External workbook links, local paths and network calls"
@@ -77,6 +92,9 @@ class ExternalLinksRule(Rule):
                     severity=Severity.ERROR if is_url else Severity.WARNING,
                     message_key="external_url" if is_url else "external_link",
                     params={"target": target},
+                    sheet=link.sheet,
+                    cell=link.cell,
+                    value=target,
                     detail=f"part={link.part}",
                 )
             )
@@ -96,30 +114,40 @@ class ExternalLinksRule(Rule):
                 urls.add(node.value)
             elif isinstance(node, FuncCall) and node.name in NETWORK_FUNCTIONS:
                 network_calls.add(node.name)
+
+        masked_formula = cell.formula
+        if masked_formula is not None:
+            for url in urls:
+                masked_formula = masked_formula.replace(url, mask_target(url))
+            for book in books:
+                masked_formula = _mask_book_in_formula(masked_formula, book)
+
         for book in sorted(books):
+            masked_book = mask_target(book)
             findings.append(
                 self.diagnostic(
                     code="EXTERNAL_LINK",
                     severity=Severity.WARNING,
                     message_key="external_link_cell",
-                    params={"book": book},
+                    params={"book": masked_book},
                     sheet=cell.sheet,
                     cell=cell.coordinate,
-                    formula=cell.formula,
-                    value=book,
+                    formula=masked_formula,
+                    value=masked_book,
                 )
             )
         for url in sorted(urls):
+            masked_url = mask_target(url)
             findings.append(
                 self.diagnostic(
                     code="EXTERNAL_URL",
                     severity=Severity.ERROR,
                     message_key="external_url",
-                    params={"target": mask_target(url)},
+                    params={"target": masked_url},
                     sheet=cell.sheet,
                     cell=cell.coordinate,
-                    formula=cell.formula,
-                    value=mask_target(url),
+                    formula=masked_formula,
+                    value=masked_url,
                 )
             )
         for func in sorted(network_calls):
@@ -131,7 +159,7 @@ class ExternalLinksRule(Rule):
                     params={"target": f"{func}()"},
                     sheet=cell.sheet,
                     cell=cell.coordinate,
-                    formula=cell.formula,
+                    formula=masked_formula,
                     value=func,
                 )
             )

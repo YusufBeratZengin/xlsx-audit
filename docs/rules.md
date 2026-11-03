@@ -40,18 +40,18 @@ references and ranges above 20 000 cells are not expanded (see Limitations).
 
 ## EXTERNAL_URL (error)
 
-- a saved relationship whose target is `http://`, `https://` or `ftp://`;
+- a saved relationship or worksheet hyperlink whose target is `http://`, `https://` or `ftp://`;
 - a URL string literal inside a formula;
 - a call to `WEBSERVICE`, `FILTERXML`, `RTD` or `STOCKHISTORY`.
 
 These can exfiltrate cell values at calculation time. Query strings are stripped before
-the finding is rendered.
+the finding is rendered, stored, or serialized.
 
 ## EXTERNAL_LINK (warning)
 
-A link to another workbook, either saved (`xl/externalLinks/*`) or written in a formula
+A link to another workbook, either saved (`xl/externalLinks/*`, worksheet hyperlinks) or written in a formula
 (`[1]Sheet1!A1`, `[C:\Users\example\Budget.xlsx]Sheet1!A1`). The target is masked to its
-file name; the local directory is never printed.
+file name; the local directory is never printed or exposed in serialized reports.
 
 ## MAGIC_NUMBER_IN_FORMULA (warning)
 
