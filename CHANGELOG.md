@@ -7,6 +7,17 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Added
+
+- Saved external hyperlink detection across worksheet relationships (`xl/worksheets/_rels/*.rels`) with cell coordinates.
+- End-to-end regression tests for external target and query masking in formulas, JSON and SARIF reports.
+
+### Fixed
+
+- Validated cell text before conversion to `int` in shared string lookups, resolving strict mypy typing errors.
+- Masked external workbook paths and sensitive URL query parameters within cell formulas and values across all report representations (JSON, SARIF, text, markdown).
+- Handled filesystem errors when writing to `--output` in CLI with a friendly error message and exit code 2.
+
 ### Changed
 
 - Documented the formula constructs the static parser does not accept (whole-row

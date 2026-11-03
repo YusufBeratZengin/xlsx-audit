@@ -78,8 +78,8 @@ xlsx-audit check examples/fake_financial_model.xlsx
 | `BROKEN_REFERENCE` | error | `#REF!` — a reference was destroyed, usually by deleting a row/column |
 | `FORMULA_ERROR_VALUE` | error | `#VALUE!`, `#DIV/0!`, `#NAME?`, `#NUM!`, `#N/A`, … in a cell or formula |
 | `CIRCULAR_REFERENCE` | error | formulas depend on themselves, directly or through a chain (all cycles, with the full path) |
-| `EXTERNAL_URL` | error | saved link to a URL, a URL string in a formula, or `WEBSERVICE`/`RTD`/`STOCKHISTORY`/`FILTERXML` |
-| `EXTERNAL_LINK` | warning | link to another workbook (`[1]Sheet1!A1`, `[C:\…\Budget.xlsx]…`) |
+| `EXTERNAL_URL` | error | saved link/hyperlink to a URL, a URL string in a formula, or `WEBSERVICE`/`RTD`/`STOCKHISTORY`/`FILTERXML` |
+| `EXTERNAL_LINK` | warning | link/hyperlink to another workbook (`[1]Sheet1!A1`, `[C:\…\Budget.xlsx]…`) |
 | `MAGIC_NUMBER_IN_FORMULA` | warning | a business constant baked into a formula (`=B2*0.18`) |
 | `OMITTED_CELL_WARNING` | warning | `=SUM(A1:A9)` while `A10` is already filled — the off-by-one total |
 | `VERY_HIDDEN_SHEET` | warning | a sheet that cannot be unhidden from the Excel UI |
@@ -103,7 +103,7 @@ are removed before they reach the terminal, JSON or SARIF.
 | --- | --- |
 | `0` | no findings (or only warnings without `--strict`) |
 | `1` | findings that fail the run |
-| `2` | usage error, or a file that could not be read as an `.xlsx` |
+| `2` | usage error, unreadable file, or report output write error |
 
 Use `--exit-zero` for reporting-only pipelines, `--ignore CODE[,CODE]` to suppress a
 rule's findings, `--rules name[,name]` to run a subset, and `--no-color` (or `NO_COLOR`)

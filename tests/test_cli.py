@@ -81,6 +81,15 @@ def test_not_a_workbook_exits_two(tmp_path: Path, capsys: pytest.CaptureFixture[
     assert "not a readable" in capsys.readouterr().err
 
 
+def test_output_write_error_exits_two(
+    good_book: Path, tmp_path: Path, capsys: pytest.CaptureFixture[str]
+) -> None:
+    bad_output_path = tmp_path / "nonexistent_dir" / "out.txt"
+    assert main(["check", str(good_book), "-o", str(bad_output_path)]) == 2
+    captured = capsys.readouterr()
+    assert "xlsx-audit: cannot write output to" in captured.err
+
+
 def test_multiple_files_text(
     bad_book: Path, good_book: Path, capsys: pytest.CaptureFixture[str]
 ) -> None:

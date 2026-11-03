@@ -176,7 +176,11 @@ def _run_check(args: argparse.Namespace) -> int:
         body = _render_many(reports, args.fmt)
 
     if args.output:
-        Path(args.output).write_text(body, encoding="utf-8")
+        try:
+            Path(args.output).write_text(body, encoding="utf-8")
+        except OSError as exc:
+            print(f"xlsx-audit: cannot write output to {args.output}: {exc}", file=sys.stderr)
+            return EXIT_USAGE
         print(f"xlsx-audit: report written to {args.output}", file=sys.stderr)
     else:
         sys.stdout.write(body)

@@ -80,8 +80,8 @@ xlsx-audit check examples/fake_financial_model.xlsx
 | `BROKEN_REFERENCE` | hata | `#REF!` — genellikle satır/sütun silinince ölen başvuru |
 | `FORMULA_ERROR_VALUE` | hata | hücrede veya formülde `#VALUE!`, `#DIV/0!`, `#NAME?`, `#NUM!`, `#N/A`… |
 | `CIRCULAR_REFERENCE` | hata | formül kendine ya da bir zincir üzerinden kendine bağlı (tüm döngüler, tam yolla) |
-| `EXTERNAL_URL` | hata | kayıtlı URL bağlantısı, formülde URL metni veya `WEBSERVICE`/`RTD`/`STOCKHISTORY`/`FILTERXML` |
-| `EXTERNAL_LINK` | uyarı | başka çalışma kitabına bağ (`[1]Sheet1!A1`, `[C:\…\Budget.xlsx]…`) |
+| `EXTERNAL_URL` | hata | kayıtlı URL köprüsü/bağlantısı, formülde URL metni veya `WEBSERVICE`/`RTD`/`STOCKHISTORY`/`FILTERXML` |
+| `EXTERNAL_LINK` | uyarı | başka çalışma kitabına bağ veya köprü (`[1]Sheet1!A1`, `[C:\…\Budget.xlsx]…`) |
 | `MAGIC_NUMBER_IN_FORMULA` | uyarı | formülün içine gömülmüş iş sabiti (`=B2*0.18`) |
 | `OMITTED_CELL_WARNING` | uyarı | `=SUM(A1:A9)` yazılmışken `A10` dolu — bir satırı atlayan toplam |
 | `VERY_HIDDEN_SHEET` | uyarı | Excel arayüzünden görünür hâle getirilemeyen sayfa |
@@ -105,7 +105,7 @@ SARIF'e yazılmadan önce atılır.
 | --- | --- |
 | `0` | bulgu yok (ya da `--strict` yokken yalnızca uyarı var) |
 | `1` | çalıştırmayı düşüren bulgular var |
-| `2` | kullanım hatası ya da `.xlsx` olarak okunamayan dosya |
+| `2` | kullanım hatası, okunamayan dosya veya rapor yazma hatası |
 
 Yalnızca rapor üreten hatlarda `--exit-zero`, bir kuralı susturmak için
 `--ignore CODE[,CODE]`, sadece belirli kuralları çalıştırmak için `--rules ad[,ad]`,
