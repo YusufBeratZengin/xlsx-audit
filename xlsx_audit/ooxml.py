@@ -197,13 +197,13 @@ def _read_worksheet(
     part: str,
     sheet_name: str,
     shared_strings: List[str],
-) -> List[Cell]:
+) -> Tuple[List[Cell], Dict[str, str]]:
     root = package.xml(part)
     if root is None:
-        return []
+        return [], {}
     sheet_data = _first(root, "sheetData")
     if sheet_data is None:
-        return []
+        return [], {}
 
     raw_cells: List[Tuple[str, int, int, Optional[str], str, int, Optional[_RawFormula]]] = []
     for row in _children(sheet_data, "row"):
@@ -234,7 +234,7 @@ def _read_worksheet(
                     ref=_attr(formula_element, "ref"),
                 )
             value = _cell_text(element)
-            if cell_type == "s" and value not in (None, ""):
+            if cell_type == "s" and value is not None and value != "":
                 try:
                     value = shared_strings[int(value)]
                 except (ValueError, IndexError) as exc:
@@ -294,7 +294,15 @@ def _read_worksheet(
                 style_id=style_id,
             )
         )
-    return cells
+    hyperlinks: Dict[str, str] = {}
+    hyperlinks_elem = _first(root, "hyperlinks")
+    if hyperlinks_elem is not None:
+        for hl in _children(hyperlinks_elem, "hyperlink"):
+            ref = _attr(hl, "ref")
+            rel_id = _attr(hl, "id")
+            if ref and rel_id:
+                hyperlinks[rel_id] = ref
+    return cells, hyperlinks
 
 
 def _read_defined_names(root: Element) -> List[DefinedName]:
@@ -334,29 +342,57 @@ def _read_properties(package: _Package) -> Dict[str, str]:
     return props
 
 
-def _collect_external_links(package: _Package, workbook_part: str) -> List[ExternalLink]:
+def _collect_external_links(
+    package: _Package,
+    workbook_part: str,
+    sheet_parts: Optional[Dict[str, str]] = None,
+    sheet_hyperlinks: Optional[Dict[str, Dict[str, str]]] = None,
+) -> List[ExternalLink]:
     """Relationships that leave the package.
 
     A workbook relationship of type ``externalLink`` points at an *internal*
     part (``xl/externalLinks/externalLink1.xml``); the real destination lives in
     that part's own relationships with ``TargetMode="External"``.
+    Worksheet parts also define relationships for external hyperlinks.
     """
     links: List[ExternalLink] = []
-    seen: set[Tuple[str, str]] = set()
+    seen: set[Tuple[str, str, Optional[str]]] = set()
 
     candidate_parts = [workbook_part]
     for entry in sorted(package.names):
-        if entry.startswith("xl/externalLinks/externalLink") and entry.endswith(".xml"):
+        is_external = entry.startswith("xl/externalLinks/externalLink") and entry.endswith(".xml")
+        is_worksheet = entry.startswith("xl/worksheets/") and entry.endswith(".xml")
+        if (is_external or is_worksheet) and entry not in candidate_parts:
             candidate_parts.append(entry)
+
+    if sheet_parts:
+        for p in sheet_parts:
+            if p not in candidate_parts:
+                candidate_parts.append(p)
+
     for part in candidate_parts:
-        for _rel_id, (target, mode) in _rels(package, part).items():
+        sheet_name = sheet_parts.get(part) if sheet_parts else None
+        hl_map = (sheet_hyperlinks.get(part) if sheet_hyperlinks else None) or {}
+
+        for rel_id, (target, mode) in _rels(package, part).items():
             if mode != "External":
                 continue
-            key = (part, target)
+            cell_ref = hl_map.get(rel_id)
+            key = (part, target, cell_ref)
             if key in seen:
                 continue
             seen.add(key)
-            links.append(ExternalLink(part=part, target=target, kind="externalLink"))
+            is_sheet = part.startswith("xl/worksheets/") or sheet_name is not None
+            kind = "hyperlink" if is_sheet else "externalLink"
+            links.append(
+                ExternalLink(
+                    part=part,
+                    target=target,
+                    kind=kind,
+                    sheet=sheet_name,
+                    cell=cell_ref,
+                )
+            )
     return links
 
 
@@ -383,6 +419,8 @@ def read_workbook(source: str | Path) -> Workbook:
         if sheets_container is None:
             raise WorkbookReadError("workbook.xml has no <sheets>")
         sheets: List[Sheet] = []
+        sheet_parts_map: Dict[str, str] = {}
+        sheet_hyperlinks_map: Dict[str, Dict[str, str]] = {}
         for entry in _children(sheets_container, "sheet"):
             name = _attr(entry, "name")
             if not name:
@@ -397,7 +435,9 @@ def read_workbook(source: str | Path) -> Workbook:
                 part = rels[rel_id][0]
             if part is None:
                 part = f"xl/worksheets/sheet{len(sheets) + 1}.xml"
-            cells = _read_worksheet(package, part, name, shared_strings)
+            sheet_parts_map[part] = name
+            cells, hyperlinks = _read_worksheet(package, part, name, shared_strings)
+            sheet_hyperlinks_map[part] = hyperlinks
             sheets.append(
                 Sheet(
                     name=name,
@@ -410,7 +450,12 @@ def read_workbook(source: str | Path) -> Workbook:
             path=str(path),
             sheets=sheets,
             defined_names=_read_defined_names(root),
-            external_links=_collect_external_links(package, workbook_part),
+            external_links=_collect_external_links(
+                package,
+                workbook_part,
+                sheet_parts=sheet_parts_map,
+                sheet_hyperlinks=sheet_hyperlinks_map,
+            ),
             properties=_read_properties(package),
         )
         return workbook
