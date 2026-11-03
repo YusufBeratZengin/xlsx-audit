@@ -7,6 +7,12 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Changed
+
+- Documented the formula constructs the static parser does not accept (whole-row
+  references such as `1:1`, parenthesised unions and spill references), which are
+  reported as `FORMULA_PARSE_ERROR` instead of being silently misread.
+
 ## [0.1.0] - 2026-11-03
 
 First public release. Everything below is implemented and covered by the test suite.

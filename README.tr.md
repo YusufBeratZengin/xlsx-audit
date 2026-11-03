@@ -184,6 +184,9 @@ denetlenebilir.
   incelemesinin ya da finansal modelin dört göz kontrolünün yerini tutmaz.
 - Tüm sütun başvuruları (`A:A`) ve 20 000 hücreden büyük aralıklar döngü analizi için
   açılmaz; yalnızca böyle bir aralığın arkasına saklanmış döngü gözden kaçar.
+- Tüm satır başvuruları (`1:1`), parantezli birleşimler (`SUM((A1,B2))`) ve taşma
+  başvuruları (`A1#`) ayrıştırıcının dilbilgisine dahil değildir; bunları kullanan hücre
+  `FORMULA_PARSE_ERROR` olarak raporlanır ve diğer kurallar o hücreyi atlar.
 - 64 seviyeden derin iç içe formüller (Excel'in kendi sınırı) ayrıştırılmaz; yığını
   tüketmesine izin verilmez, `FORMULA_PARSE_ERROR` olarak raporlanır.
 - `IFERROR`/`IF` kısa devreleri ile `INDIRECT`/`OFFSET` dolaylılığı izlenmez.

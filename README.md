@@ -180,6 +180,9 @@ evaluated, so a workbook saved by a library that does not cache results is still
   substitute for an audit firm's review or for a four-eyes check of a financial model.
 - Whole-column references (`A:A`) and ranges larger than 20 000 cells are not expanded
   for cycle analysis; a cycle hidden exclusively behind such a reference is missed.
+- Whole-row references (`1:1`), parenthesised unions (`SUM((A1,B2))`) and spill
+  references (`A1#`) are not part of the parsed grammar; a cell using them is reported
+  as `FORMULA_PARSE_ERROR` and the other rules skip it.
 - Formulas nested deeper than 64 levels (Excel's own nesting limit) are not parsed; they
   are reported as `FORMULA_PARSE_ERROR` instead of being allowed to exhaust the stack.
 - `IFERROR`/`IF` short-circuits and `INDIRECT`/`OFFSET` indirection are not followed.
