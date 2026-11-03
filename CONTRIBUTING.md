@@ -15,8 +15,13 @@ bash scripts/check.sh
 ```
 
 `scripts/check.sh` runs ruff (lint + format check), mypy in strict mode, the whole test
-suite and a coverage gate. It must exit 0 before a pull request is opened. No network
-access is needed: the tests build their own `.xlsx` fixtures with `zipfile`.
+suite and a coverage gate. It must exit 0 before a pull request is opened. The test
+suite itself needs no network access: it builds its own `.xlsx` fixtures with `zipfile`.
+
+The script does not assume your shell's `python3` has the dev tools: it picks the first
+interpreter (including one on `PATH` behind an activated venv) that can import them, and
+if there is none it creates a throwaway `.venv` and installs `.[dev]` once. Set
+`PYTHON=/path/to/python` to force a specific interpreter.
 
 ## What to work on
 
