@@ -36,17 +36,13 @@ jobs:
           python -m pip install --upgrade pip
           python -m pip install -e ".[dev]"
 
-      - name: Lint
-        run: python -m ruff check .
-
-      - name: Format check
-        run: python -m ruff format --check .
-
-      - name: Type check
-        run: python -m mypy
-
-      - name: Tests with coverage
-        run: python -m pytest -q --cov=xlsx_audit --cov-report=term-missing --cov-report=xml --cov-fail-under=87
+      - name: Quality gate (scripts/check.sh)
+        shell: bash
+        env:
+          # The shared gate is the only list of checks; CI only asks it to emit
+          # coverage.xml as well so the artefact below can be uploaded.
+          COVERAGE_XML: "1"
+        run: bash scripts/check.sh
 
       - name: Upload coverage
         if: matrix.os == 'ubuntu-latest' && matrix.python == '3.12'

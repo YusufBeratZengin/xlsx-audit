@@ -155,10 +155,16 @@ step "mypy (strict)"
 if ! "$PYTHON_CMD" -m mypy ; then fail "mypy"; fi
 
 step "pytest with coverage >= ${COVERAGE_MIN}%"
-if ! "$PYTHON_CMD" -m pytest -q \
-    --cov=xlsx_audit \
-    --cov-report=term-missing \
-    --cov-fail-under="${COVERAGE_MIN}" ; then
+COVERAGE_ARGS=(
+    --cov=xlsx_audit
+    --cov-report=term-missing
+    --cov-fail-under="${COVERAGE_MIN}"
+)
+# CI sets COVERAGE_XML=1 so the same gate also produces the artefact it uploads.
+if [ -n "${COVERAGE_XML:-}" ]; then
+    COVERAGE_ARGS+=(--cov-report=xml)
+fi
+if ! "$PYTHON_CMD" -m pytest -q "${COVERAGE_ARGS[@]}" ; then
     fail "pytest / coverage"
 fi
 

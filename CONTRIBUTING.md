@@ -23,6 +23,9 @@ interpreter (including one on `PATH` behind an activated venv) that can import t
 if there is none it creates a throwaway `.venv` and installs `.[dev]` once. Set
 `PYTHON=/path/to/python` to force a specific interpreter.
 
+CI runs the same `scripts/check.sh` (with `COVERAGE_XML=1` to also emit `coverage.xml`),
+so a green local gate and a green workflow use one list of checks, not two.
+
 ## What to work on
 
 - Issues labelled [`good first issue`](https://github.com/YusufBeratZengin/xlsx-audit/labels/good%20first%20issue)
