@@ -57,22 +57,44 @@ jobs:
           if-no-files-found: warn
 
   example:
-    name: CLI smoke test (example workbook)
+    name: Wheel package & CLI smoke test
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v4
       - uses: actions/setup-python@v5
         with:
           python-version: "3.12"
-      - name: Install
-        run: python -m pip install -e .
+      - name: Build and install wheel
+        run: |
+          python -m pip install --upgrade pip
+          python -m pip wheel --no-deps --wheel-dir dist .
+          python -m pip install dist/*.whl
       - name: Rebuild the synthetic example
         run: python scripts/make_example.py
-      - name: The example must fail with exactly the documented findings
+      - name: Smoke-test installed wheel outside the source tree
         shell: bash
         run: |
+          workdir="$(mktemp -d)"
+          cp examples/fake_financial_model.xlsx "$workdir/fake_financial_model.xlsx"
+          python - "$workdir/clean.xlsx" <<'PY'
+          import sys
+          from pathlib import Path
+          from tests.factory import build_workbook, simple_sheet
+          build_workbook(
+              Path(sys.argv[1]),
+              [simple_sheet("Sheet1", {"A1": {"v": 1}, "A2": {"f": "A1+1", "v": 2}})],
+          )
+          PY
+          cd "$workdir"
+          python - <<'PY'
+          from pathlib import Path
+          import xlsx_audit
+          pkg_dir = Path(xlsx_audit.__file__).resolve().parent
+          assert "site-packages" in pkg_dir.parts, pkg_dir
+          assert (pkg_dir / "py.typed").is_file(), pkg_dir
+          PY
           set +e
-          xlsx-audit check examples/fake_financial_model.xlsx --format json -o report.json
+          xlsx-audit check fake_financial_model.xlsx --format json -o report.json
           status=$?
           set -e
           test "$status" -eq 1
@@ -90,16 +112,5 @@ jobs:
           assert codes == expected, (codes, expected)
           assert report["status"] == "fail"
           print("example report matches the documented findings")
-          PY
-      - name: A clean workbook must pass
-        shell: bash
-        run: |
-          python - <<'PY'
-          from pathlib import Path
-          from tests.factory import build_workbook, simple_sheet
-          build_workbook(
-              Path("clean.xlsx"),
-              [simple_sheet("Sheet1", {"A1": {"v": 1}, "A2": {"f": "A1+1", "v": 2}})],
-          )
           PY
           xlsx-audit check clean.xlsx
