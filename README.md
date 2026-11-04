@@ -14,7 +14,7 @@ $ xlsx-audit check examples/fake_financial_model.xlsx
 - [ERROR] Gelirler!E15: Broken formula reference found (#REF!). (BROKEN_REFERENCE)
 - [WARNING] <workbook>: External workbook reference: …/Budget_2025.xlsx (EXTERNAL_LINK)
 - [WARNING] Giderler!B8: Hard-coded numeric constant 1.2 in formula. (MAGIC_NUMBER_IN_FORMULA)
-- [WARNING] Giderler!D11: Range Giderler!C8:C9 ends before the filled cell C10 (25). (OMITTED_CELL_WARNING)
+- [WARNING] Giderler!D11: Range Giderler!C8:C9 ends before the filled cell C10 (<number>). (OMITTED_CELL_WARNING)
 - [WARNING] Notlar: Sheet is veryHidden: invisible in the Excel UI. (VERY_HIDDEN_SHEET)
 
 5 findings · 3 sheets · 15 cells · 4 formulas
@@ -94,8 +94,13 @@ Structural constants (`0`, `1`, `2`, `100`) and index/precision arguments
 once per cell, not once per occurrence.
 
 Findings are sorted by severity and cell, so two runs on the same file always produce
-the same order. External targets are masked: the local directory and any query string
-are removed before they reach the terminal, JSON or SARIF.
+the same order. Reports are meant to be shared, so **every** finding is redacted before
+it reaches the terminal, JSON, Markdown or SARIF — not just external-link findings:
+local directories become `…/Budget.xlsx`, URL query strings are dropped, e-mail local
+parts become `***`, and raw cell values are reduced to a shape hint (`<number>`,
+`<text:12>`, `<boolean>`). The same filter is applied in the model, so custom rules and
+`report.to_dict()` cannot bypass it. A cell coordinate is always reported; open the
+workbook to see the value itself.
 
 ## Exit codes
 
@@ -103,7 +108,7 @@ are removed before they reach the terminal, JSON or SARIF.
 | --- | --- |
 | `0` | no findings (or only warnings without `--strict`) |
 | `1` | findings that fail the run |
-| `2` | usage error, unreadable file, or report output write error |
+| `2` | usage error, unreadable file, report output write error, or an `--output` path that is the input workbook |
 
 Use `--exit-zero` for reporting-only pipelines, `--ignore CODE[,CODE]` to suppress a
 rule's findings, `--rules name[,name]` to run a subset, and `--no-color` (or `NO_COLOR`)

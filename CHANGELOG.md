@@ -11,15 +11,18 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 - Saved external hyperlink detection across worksheet relationships (`xl/worksheets/_rels/*.rels`) with cell coordinates.
 - End-to-end regression tests for external target and query masking in formulas, JSON and SARIF reports.
+- Regression tests for redaction on non-external rules, `--output` overwrite refusal, and the documented unsupported-formula behaviour.
 
 ### Fixed
 
 - Validated cell text before conversion to `int` in shared string lookups, resolving strict mypy typing errors.
-- Masked external workbook paths and sensitive URL query parameters within cell formulas and values across all report representations (JSON, SARIF, text, markdown).
+- Redaction now runs in the `Diagnostic` model, so *every* rule and serialiser masks local paths, URL query strings and e-mail addresses — not only `EXTERNAL_LINK`. `OMITTED_CELL_WARNING` no longer echoes the raw candidate cell value (it reports `<number>`, `<text:N>` or `<boolean>`).
+- The CLI refuses an `--output` path that resolves to the input workbook (`os.path.samefile`/`resolve`, exit code 2) instead of overwriting the `.xlsx` with report text.
 - Handled filesystem errors when writing to `--output` in CLI with a friendly error message and exit code 2.
 
 ### Changed
 
+- CI now calls `scripts/check.sh` (`COVERAGE_XML=1`) instead of repeating the lint, format, type and coverage commands, so the local gate and the workflow cannot drift apart.
 - Circular-reference reporting now enumerates the elementary cycles of each strongly
   connected component (iterative Johnson's algorithm, at most 100 cycles per component)
   instead of reporting a single representative path. Several distinct loops sharing

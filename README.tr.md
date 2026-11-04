@@ -16,7 +16,7 @@ $ xlsx-audit check examples/fake_financial_model.xlsx --lang tr
 - [HATA] Gelirler!E15: Kırık formül referansı bulundu (#REF!). (BROKEN_REFERENCE)
 - [UYARI] <workbook>: Dış çalışma kitabı bağlantısı: …/Budget_2025.xlsx (EXTERNAL_LINK)
 - [UYARI] Giderler!B8: Formül içine gömülü sabit sayı: 1.2. (MAGIC_NUMBER_IN_FORMULA)
-- [UYARI] Giderler!D11: Giderler!C8:C9 toplam aralığı dolu hücreyi kapsamıyor: C10 (25). (OMITTED_CELL_WARNING)
+- [UYARI] Giderler!D11: Giderler!C8:C9 toplam aralığı dolu hücreyi kapsamıyor: C10 (<number>). (OMITTED_CELL_WARNING)
 - [UYARI] Notlar: Sayfa veryHidden olarak gizlenmiş: Excel arayüzünde görünmez. (VERY_HIDDEN_SHEET)
 
 5 bulgu · 3 sayfa · 15 hücre · 4 formül
@@ -96,8 +96,13 @@ Yapısal sabitler (`0`, `1`, `2`, `100`) ve indeks/hassasiyet argümanları
 kez raporlanır, her geçtiği yerde değil.
 
 Bulgular önem ve hücreye göre sıralanır; aynı dosyada iki çalıştırma her zaman aynı sırayı
-verir. Dış hedefler maskelenir: yerel dizin ve sorgu parametreleri terminale, JSON'a veya
-SARIF'e yazılmadan önce atılır.
+verir. Raporlar paylaşılmak için üretilir; bu yüzden **her** bulgu terminale, JSON'a,
+Markdown'a veya SARIF'e yazılmadan önce maskelenir — yalnızca dış bağlantı bulguları
+değil: yerel dizinler `…/Budget.xlsx` olur, URL sorgu parametreleri atılır, e-posta
+adreslerinin yerel kısmı `***` olur, ham hücre değerleri yalnızca tür ipucuna indirgenir
+(`<number>`, `<text:12>`, `<boolean>`). Filtre model katmanında uygulandığı için özel
+kurallar ve `report.to_dict()` de onu atlayamaz. Hücre koordinatı her zaman raporlanır;
+değerin kendisini görmek için çalışma kitabını açın.
 
 ## Çıkış kodları
 
@@ -105,7 +110,7 @@ SARIF'e yazılmadan önce atılır.
 | --- | --- |
 | `0` | bulgu yok (ya da `--strict` yokken yalnızca uyarı var) |
 | `1` | çalıştırmayı düşüren bulgular var |
-| `2` | kullanım hatası, okunamayan dosya veya rapor yazma hatası |
+| `2` | kullanım hatası, okunamayan dosya, rapor yazma hatası veya `--output` yolunun giriş dosyası olması |
 
 Yalnızca rapor üreten hatlarda `--exit-zero`, bir kuralı susturmak için
 `--ignore CODE[,CODE]`, sadece belirli kuralları çalıştırmak için `--rules ad[,ad]`,

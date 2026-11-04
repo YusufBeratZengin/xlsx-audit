@@ -84,7 +84,9 @@ B1    = SUM(A1:A3)   → OMITTED_CELL_WARNING, "candidate A4"
 ```
 
 Conservative by design: it does not fire for text, formulas, empty cells, external
-sheets or when the extra cell is referenced elsewhere in the formula.
+sheets or when the extra cell is referenced elsewhere in the formula. The value of the
+candidate cell is **not** echoed: the report says `<number>` (or `<text:N>`,
+`<boolean>`), so a shared report cannot leak personnel or salary data.
 
 ## VERY_HIDDEN_SHEET (warning) / HIDDEN_SHEET (info)
 
@@ -104,6 +106,20 @@ because names are personal data.
 
 The static parser met a construct it does not model. The cell is skipped by the other
 rules rather than guessed at; the finding tells you which cell to inspect by hand.
+
+Examples covered by the test suite — each produces only `FORMULA_PARSE_ERROR` and no
+other finding for that cell:
+
+| Construct | Example |
+| --- | --- |
+| whole-row reference | `1:1` |
+| parenthesised union | `SUM((A1,B2))*1.5` |
+| spill reference | `A1#*1.5` |
+| unclosed call | `SUM(` |
+| more than 64 nested levels | `=((((…1…))))` |
+
+The same list is in the README's Limitations section; `tests/test_rules.py` keeps the
+documentation and the parser behaviour from drifting apart.
 
 ## GRAPH_LIMIT_EXCEEDED (info)
 

@@ -524,6 +524,27 @@ def test_parse_error_is_a_warning_not_a_crash(tmp_path: Path) -> None:
     assert report.passed
 
 
+@pytest.mark.parametrize(
+    "formula",
+    [
+        "SUM((A1,B2))*1.5",  # parenthesised union
+        "A1#*1.5",  # spill reference
+        "1:1",  # whole-row reference
+    ],
+)
+def test_unsupported_constructs_are_reported_and_other_rules_skip_them(
+    tmp_path: Path, formula: str
+) -> None:
+    """README Limitations: an unparsed formula is reported, never guessed at."""
+    path = build_workbook(
+        tmp_path / "unsupported.xlsx",
+        [simple_sheet("S", {"A1": {"f": formula, "v": 0}, "A2": {"v": 1}})],
+    )
+    report = audit_workbook(path, rules=["magic_numbers"])
+    assert [d.code for d in report.diagnostics] == ["FORMULA_PARSE_ERROR"]
+    assert report.diagnostics[0].location == "S!A1"
+
+
 def test_ignore_suppresses_by_code(tmp_path: Path) -> None:
     path = build_workbook(
         tmp_path / "ignore.xlsx", [simple_sheet("S", {"A1": {"f": "B1*1.5", "v": 0}})]
