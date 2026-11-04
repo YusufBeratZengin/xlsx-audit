@@ -28,8 +28,10 @@ One finding per distinct code per cell.
 
 ## CIRCULAR_REFERENCE (error)
 
-The dependency graph (formula cells as nodes, references as edges) contains a strongly
-connected component. Reported once per cycle with the full path:
+The dependency graph (formula cells as nodes, references as edges) contains one or more
+elementary cycles inside a strongly connected component. Reported once per elementary
+cycle (up to 100 cycles per strongly connected component) with the full path, anchored
+at the cycle's smallest cell coordinate:
 
 ```
 S!A1 -> S!B1 -> S!C1 -> S!A1

@@ -77,7 +77,7 @@ xlsx-audit check examples/fake_financial_model.xlsx
 | --- | --- | --- |
 | `BROKEN_REFERENCE` | error | `#REF!` — a reference was destroyed, usually by deleting a row/column |
 | `FORMULA_ERROR_VALUE` | error | `#VALUE!`, `#DIV/0!`, `#NAME?`, `#NUM!`, `#N/A`, … in a cell or formula |
-| `CIRCULAR_REFERENCE` | error | formulas depend on themselves, directly or through a chain (all cycles, with the full path) |
+| `CIRCULAR_REFERENCE` | error | formulas depend on themselves, directly or through a chain (elementary cycles with the full path, up to 100 per strongly connected component) |
 | `EXTERNAL_URL` | error | saved link/hyperlink to a URL, a URL string in a formula, or `WEBSERVICE`/`RTD`/`STOCKHISTORY`/`FILTERXML` |
 | `EXTERNAL_LINK` | warning | link/hyperlink to another workbook (`[1]Sheet1!A1`, `[C:\…\Budget.xlsx]…`) |
 | `MAGIC_NUMBER_IN_FORMULA` | warning | a business constant baked into a formula (`=B2*0.18`) |
@@ -160,7 +160,7 @@ xlsx_audit/
 ├── ooxml.py           # bounded zip reader: workbook.xml, rels, sharedStrings, sheets
 ├── formula_parser.py  # tokenizer + AST (refs, ranges, calls, arrays, operators)
 ├── refs.py            # A1 notation helpers
-├── graph_audit.py     # dependency graph, iterative Tarjan SCC → cycles
+├── graph_audit.py     # dependency graph, iterative Tarjan SCC + Johnson elementary cycles
 ├── rules/             # one module per rule, shared registry
 ├── reporter.py        # text / JSON / Markdown
 ├── sarif_reporter.py  # SARIF 2.1.0
@@ -180,6 +180,7 @@ evaluated, so a workbook saved by a library that does not cache results is still
   substitute for an audit firm's review or for a four-eyes check of a financial model.
 - Whole-column references (`A:A`) and ranges larger than 20 000 cells are not expanded
   for cycle analysis; a cycle hidden exclusively behind such a reference is missed.
+  Elementary cycle enumeration is capped at 100 cycles per strongly connected component.
 - Whole-row references (`1:1`), parenthesised unions (`SUM((A1,B2))`) and spill
   references (`A1#`) are not part of the parsed grammar; a cell using them is reported
   as `FORMULA_PARSE_ERROR` and the other rules skip it.

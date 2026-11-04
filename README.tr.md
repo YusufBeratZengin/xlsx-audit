@@ -79,7 +79,7 @@ xlsx-audit check examples/fake_financial_model.xlsx
 | --- | --- | --- |
 | `BROKEN_REFERENCE` | hata | `#REF!` — genellikle satır/sütun silinince ölen başvuru |
 | `FORMULA_ERROR_VALUE` | hata | hücrede veya formülde `#VALUE!`, `#DIV/0!`, `#NAME?`, `#NUM!`, `#N/A`… |
-| `CIRCULAR_REFERENCE` | hata | formül kendine ya da bir zincir üzerinden kendine bağlı (tüm döngüler, tam yolla) |
+| `CIRCULAR_REFERENCE` | hata | formül kendine ya da bir zincir üzerinden kendine bağlı (tam yolla basit döngüler; güçlü bağlı bileşen başına en fazla 100) |
 | `EXTERNAL_URL` | hata | kayıtlı URL köprüsü/bağlantısı, formülde URL metni veya `WEBSERVICE`/`RTD`/`STOCKHISTORY`/`FILTERXML` |
 | `EXTERNAL_LINK` | uyarı | başka çalışma kitabına bağ veya köprü (`[1]Sheet1!A1`, `[C:\…\Budget.xlsx]…`) |
 | `MAGIC_NUMBER_IN_FORMULA` | uyarı | formülün içine gömülmüş iş sabiti (`=B2*0.18`) |
@@ -163,7 +163,7 @@ xlsx_audit/
 ├── ooxml.py           # sınırlı zip okuyucu: workbook.xml, rels, sharedStrings, sayfalar
 ├── formula_parser.py  # tokenizer + AST (başvurular, aralıklar, çağrılar, diziler)
 ├── refs.py            # A1 gösterimi yardımcıları
-├── graph_audit.py     # bağımlılık çizgesi, yinelemeli Tarjan SCC → döngüler
+├── graph_audit.py     # bağımlılık çizgesi, yinelemeli Tarjan SCC + Johnson basit döngüleri
 ├── rules/             # her kural için bir modül, ortak kayıt
 ├── reporter.py        # metin / JSON / Markdown
 ├── sarif_reporter.py  # SARIF 2.1.0
@@ -183,7 +183,8 @@ denetlenebilir.
   kanıtlayamaz, yalnızca bilinen risk kalıplarını gösterir. Bir denetim firmasının
   incelemesinin ya da finansal modelin dört göz kontrolünün yerini tutmaz.
 - Tüm sütun başvuruları (`A:A`) ve 20 000 hücreden büyük aralıklar döngü analizi için
-  açılmaz; yalnızca böyle bir aralığın arkasına saklanmış döngü gözden kaçar.
+  açılmaz; yalnızca böyle bir aralığın arkasına saklanmış döngü gözden kaçar. Basit
+  döngü dökümü güçlü bağlı bileşen başına 100 döngüyle sınırlandırılmıştır.
 - Tüm satır başvuruları (`1:1`), parantezli birleşimler (`SUM((A1,B2))`) ve taşma
   başvuruları (`A1#`) ayrıştırıcının dilbilgisine dahil değildir; bunları kullanan hücre
   `FORMULA_PARSE_ERROR` olarak raporlanır ve diğer kurallar o hücreyi atlar.

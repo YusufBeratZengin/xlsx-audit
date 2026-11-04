@@ -20,6 +20,11 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Changed
 
+- Circular-reference reporting now enumerates the elementary cycles of each strongly
+  connected component (iterative Johnson's algorithm, at most 100 cycles per component)
+  instead of reporting a single representative path. Several distinct loops sharing
+  cells in one component are therefore all reported, each anchored at its smallest cell
+  coordinate.
 - Documented the formula constructs the static parser does not accept (whole-row
   references such as `1:1`, parenthesised unions and spill references), which are
   reported as `FORMULA_PARSE_ERROR` instead of being silently misread.
