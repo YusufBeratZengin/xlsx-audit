@@ -67,7 +67,8 @@ def build_parser() -> argparse.ArgumentParser:
         "-o",
         "--output",
         metavar="PATH",
-        help="write the report to PATH instead of stdout (single input only)",
+        help="write the report to PATH instead of stdout (single input only; "
+        "must not name the input workbook)",
     )
     check.add_argument(
         "--lang",
@@ -128,6 +129,23 @@ def _split_many(values: Sequence[str]) -> List[str]:
     return out
 
 
+def _same_file(first: Path, second: Path) -> bool:
+    """True when two paths name the same filesystem object.
+
+    ``resolve()`` catches a not-yet-existing output path and relative spellings;
+    ``os.path.samefile`` additionally catches hard links and symlinks.
+    """
+    try:
+        if first.resolve() == second.resolve():
+            return True
+    except OSError:
+        pass
+    try:
+        return first.exists() and second.exists() and os.path.samefile(first, second)
+    except OSError:
+        return False
+
+
 def _run_check(args: argparse.Namespace) -> int:
     lang = normalize_lang(args.lang)
     ignore = _split_many(args.ignore)
@@ -135,6 +153,16 @@ def _run_check(args: argparse.Namespace) -> int:
     if args.output and len(args.files) > 1:
         print("xlsx-audit: --output accepts a single input file", file=sys.stderr)
         return EXIT_USAGE
+    if args.output:
+        output_path = Path(args.output)
+        for raw_path in args.files:
+            if _same_file(output_path, Path(raw_path)):
+                print(
+                    "xlsx-audit: refusing to write the report over the input workbook "
+                    f"{raw_path}; choose a different --output path",
+                    file=sys.stderr,
+                )
+                return EXIT_USAGE
 
     reports: List[AuditReport] = []
     read_errors = 0

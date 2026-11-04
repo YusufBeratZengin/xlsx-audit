@@ -90,6 +90,29 @@ def test_output_write_error_exits_two(
     assert "xlsx-audit: cannot write output to" in captured.err
 
 
+def test_output_refuses_to_overwrite_the_input_workbook(
+    good_book: Path, capsys: pytest.CaptureFixture[str]
+) -> None:
+    before = good_book.read_bytes()
+    assert main(["check", str(good_book), "-o", str(good_book)]) == 2
+    captured = capsys.readouterr()
+    assert "refusing to write the report over the input workbook" in captured.err
+    assert captured.out == ""
+    assert good_book.read_bytes() == before
+    assert good_book.read_bytes()[:2] == b"PK"
+
+
+def test_output_refuses_the_same_file_spelled_differently(
+    good_book: Path, tmp_path: Path, capsys: pytest.CaptureFixture[str]
+) -> None:
+    alias = tmp_path / "sub" / ".." / good_book.name
+    (tmp_path / "sub").mkdir()
+    before = good_book.read_bytes()
+    assert main(["check", str(good_book), "-o", str(alias)]) == 2
+    assert "refusing to write" in capsys.readouterr().err
+    assert good_book.read_bytes() == before
+
+
 def test_multiple_files_text(
     bad_book: Path, good_book: Path, capsys: pytest.CaptureFixture[str]
 ) -> None:
