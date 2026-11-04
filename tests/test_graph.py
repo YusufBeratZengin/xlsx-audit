@@ -6,7 +6,7 @@ from pathlib import Path
 
 import pytest
 import xlsx_audit.graph_audit as graph_audit
-from xlsx_audit.graph_audit import Cycle, build_dependency_graph, find_cycles
+from xlsx_audit.graph_audit import Cycle, build_dependency_graph, dedupe_cycles, find_cycles
 from xlsx_audit.ooxml import read_workbook
 
 from factory import build_workbook, simple_sheet
@@ -79,6 +79,73 @@ def test_two_independent_cycles_are_both_reported(tmp_path: Path) -> None:
         },
     )
     assert len(cycles) == 2
+
+
+def test_multiple_cycles_in_single_scc_are_all_reported(tmp_path: Path) -> None:
+    # A1 <-> B1 and B1 <-> C1 form one strongly connected component {A1, B1, C1}
+    # with two elementary cycles: A1 -> B1 -> A1 and B1 -> C1 -> B1.
+    cycles = cycles_for(
+        tmp_path,
+        {
+            "A1": {"f": "B1", "v": 0},
+            "B1": {"f": "A1+C1", "v": 0},
+            "C1": {"f": "B1", "v": 0},
+        },
+    )
+    assert [c.path_text() for c in cycles] == [
+        "S!A1 -> S!B1 -> S!A1",
+        "S!B1 -> S!C1 -> S!B1",
+    ]
+
+
+def test_figure_eight_cycles_sharing_start_node_are_all_reported(tmp_path: Path) -> None:
+    cycles = cycles_for(
+        tmp_path,
+        {
+            "A1": {"f": "B1+C1", "v": 0},
+            "B1": {"f": "A1", "v": 0},
+            "C1": {"f": "A1", "v": 0},
+        },
+    )
+    assert [c.path_text() for c in cycles] == [
+        "S!A1 -> S!B1 -> S!A1",
+        "S!A1 -> S!C1 -> S!A1",
+    ]
+
+
+def test_self_reference_and_cycle_in_same_scc_are_both_reported(tmp_path: Path) -> None:
+    cycles = cycles_for(
+        tmp_path,
+        {
+            "A1": {"f": "A1+B1", "v": 0},
+            "B1": {"f": "A1", "v": 0},
+        },
+    )
+    assert [c.path_text() for c in cycles] == [
+        "S!A1 -> S!A1",
+        "S!A1 -> S!B1 -> S!A1",
+    ]
+
+
+def test_cycle_limit_per_component(tmp_path: Path, monkeypatch: pytest.MonkeyPatch) -> None:
+    monkeypatch.setattr(graph_audit, "MAX_CYCLES_PER_COMPONENT", 1)
+    cycles = cycles_for(
+        tmp_path,
+        {
+            "A1": {"f": "B1+C1", "v": 0},
+            "B1": {"f": "A1", "v": 0},
+            "C1": {"f": "A1", "v": 0},
+        },
+    )
+    assert [c.path_text() for c in cycles] == ["S!A1 -> S!B1 -> S!A1"]
+
+
+def test_dedupe_cycles_removes_rotations_and_keeps_distinct_directions() -> None:
+    a1, b1, c1 = ("S", "A1"), ("S", "B1"), ("S", "C1")
+    forward = Cycle((a1, b1, c1))
+    rotated = Cycle((b1, c1, a1))
+    reverse = Cycle((a1, c1, b1))
+    assert dedupe_cycles([forward, rotated, reverse]) == [forward, reverse]
 
 
 def test_self_reference_is_a_cycle(tmp_path: Path) -> None:

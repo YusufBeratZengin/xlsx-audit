@@ -450,6 +450,28 @@ def test_self_reference(tmp_path: Path) -> None:
     assert len(by_code(audit_workbook(path), "CIRCULAR_REFERENCE")) == 1
 
 
+def test_multiple_cycles_in_same_component_reported(tmp_path: Path) -> None:
+    path = build_workbook(
+        tmp_path / "multi_cycle.xlsx",
+        [
+            simple_sheet(
+                "Sheet1",
+                {
+                    "A1": {"f": "B1+C1", "v": 0},
+                    "B1": {"f": "A1+1", "v": 0},
+                    "C1": {"f": "A1+1", "v": 0},
+                },
+            )
+        ],
+    )
+    report = audit_workbook(path)
+    cycles = by_code(report, "CIRCULAR_REFERENCE")
+    assert [c.detail for c in cycles] == [
+        "Sheet1!A1 -> Sheet1!B1 -> Sheet1!A1",
+        "Sheet1!A1 -> Sheet1!C1 -> Sheet1!A1",
+    ]
+
+
 def test_cross_sheet_cycle(tmp_path: Path) -> None:
     path = build_workbook(
         tmp_path / "cross.xlsx",

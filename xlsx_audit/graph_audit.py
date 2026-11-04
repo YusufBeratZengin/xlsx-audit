@@ -2,22 +2,22 @@
 
 Every formula cell is a node; an edge points at each formula cell it reads.
 Strongly connected components (Tarjan, iterative so deep models cannot blow the
-Python stack) that contain more than one node - or a self-reference - are
-circular references.  Excel only reports the first one it happens to evaluate;
-this reports all of them with a readable path.
+Python stack) are decomposed into elementary cycles (iterative Johnson's
+algorithm, bounded by ``MAX_CYCLES_PER_COMPONENT`` per component).  Excel only
+reports the first circular reference it happens to evaluate; this reports the
+elementary cycles with a readable path.
 """
 
 from __future__ import annotations
 
-from collections import deque
 from dataclasses import dataclass
-from typing import Dict, Iterable, List, Optional, Sequence, Set, Tuple
+from typing import Dict, Iterable, Iterator, List, Optional, Sequence, Set, Tuple
 
 from .formula_parser import FormulaSyntaxError, NameRef, Node, Range, Ref, iter_nodes, parse_formula
 from .models import DefinedName, Workbook
 from .refs import format_coordinate
 
-__all__ = ["Cycle", "build_dependency_graph", "find_cycles"]
+__all__ = ["Cycle", "build_dependency_graph", "dedupe_cycles", "find_cycles"]
 
 NodeKey = Tuple[str, str]
 
@@ -25,6 +25,7 @@ NodeKey = Tuple[str, str]
 #: whole-column references and expanding them would gain nothing.
 MAX_RANGE_CELLS = 20_000
 MAX_GRAPH_NODES = 200_000
+MAX_CYCLES_PER_COMPONENT = 100
 
 
 @dataclass(frozen=True)
@@ -178,56 +179,99 @@ def _tarjan(graph: Dict[NodeKey, Set[NodeKey]]) -> List[List[NodeKey]]:
     return components
 
 
-def _cycle_in_component(
+@dataclass
+class _CycleFrame:
+    node: NodeKey
+    neighbors: Iterator[NodeKey]
+    closed: bool = False
+
+
+def _unblock(
+    node: NodeKey,
+    blocked: Set[NodeKey],
+    block_map: Dict[NodeKey, Set[NodeKey]],
+) -> None:
+    stack = [node]
+    while stack:
+        current = stack.pop()
+        if current in blocked:
+            blocked.remove(current)
+            for prev in block_map[current]:
+                if prev in blocked:
+                    stack.append(prev)
+            block_map[current].clear()
+
+
+def _cycles_in_component(
     component: Sequence[NodeKey], graph: Dict[NodeKey, Set[NodeKey]]
-) -> List[NodeKey]:
-    """Shortest cycle through the smallest node of a strongly connected component."""
-    members = set(component)
-    start = min(component)
-    for first in sorted(graph[start] & members):
-        if first == start:
-            return [start]
-        parents: Dict[NodeKey, Optional[NodeKey]] = {first: None}
-        queue: deque[NodeKey] = deque([first])
-        while queue:
-            current = queue.popleft()
-            for nxt in sorted(graph[current] & members):
+) -> List[Cycle]:
+    """Elementary cycles in a strongly connected component (bounded by ``MAX_CYCLES_PER_COMPONENT``)."""
+    cycles: List[Cycle] = []
+    ordered_members = sorted(component)
+    for idx, start in enumerate(ordered_members):
+        if start in graph[start]:
+            cycles.append(Cycle((start,)))
+            if len(cycles) >= MAX_CYCLES_PER_COMPONENT:
+                return cycles
+        allowed = set(ordered_members[idx:])
+        if len(allowed) < 2:
+            continue
+        start_neighbors = sorted((graph[start] & allowed) - {start})
+        if not start_neighbors:
+            continue
+        blocked: Set[NodeKey] = {start}
+        block_map: Dict[NodeKey, Set[NodeKey]] = {u: set() for u in allowed}
+        path: List[NodeKey] = [start]
+        work: List[_CycleFrame] = [_CycleFrame(start, iter(start_neighbors))]
+        while work:
+            frame = work[-1]
+            nxt = next(frame.neighbors, None)
+            if nxt is not None:
                 if nxt == start:
-                    path = [current]
-                    parent = parents[current]
-                    while parent is not None:
-                        path.append(parent)
-                        parent = parents[parent]
-                    path.reverse()
-                    return [start, *path]
-                if nxt not in parents:
-                    parents[nxt] = current
-                    queue.append(nxt)
-    return list(component)
+                    cycles.append(Cycle(tuple(path)))
+                    frame.closed = True
+                    if len(cycles) >= MAX_CYCLES_PER_COMPONENT:
+                        return cycles
+                elif nxt not in blocked:
+                    path.append(nxt)
+                    blocked.add(nxt)
+                    nxt_neighbors = sorted((graph[nxt] & allowed) - {nxt})
+                    work.append(_CycleFrame(nxt, iter(nxt_neighbors)))
+                continue
+            work.pop()
+            path.pop()
+            if frame.closed:
+                _unblock(frame.node, blocked, block_map)
+                if work:
+                    work[-1].closed = True
+            else:
+                for neighbor in (graph[frame.node] & allowed) - {frame.node}:
+                    block_map[neighbor].add(frame.node)
+    return cycles
 
 
 def find_cycles(workbook: Workbook) -> List[Cycle]:
-    """All circular references in ``workbook``, deterministically ordered."""
+    """Elementary circular references in ``workbook``, deterministically ordered."""
     graph = build_dependency_graph(workbook)
     cycles: List[Cycle] = []
     for component in _tarjan(graph):
-        if len(component) == 1:
-            node = component[0]
-            if node not in graph[node]:
-                continue
-            cycles.append(Cycle((node,)))
-            continue
-        ordered = _cycle_in_component(component, graph)
-        cycles.append(Cycle(tuple(ordered)))
+        cycles.extend(_cycles_in_component(component, graph))
     cycles.sort(key=lambda c: [(sheet, cell) for sheet, cell in c.nodes])
     return dedupe_cycles(cycles)
+
+
+def _canonical_nodes(nodes: Sequence[NodeKey]) -> Tuple[NodeKey, ...]:
+    if not nodes:
+        return ()
+    min_index = min(range(len(nodes)), key=nodes.__getitem__)
+    return (*nodes[min_index:], *nodes[:min_index])
 
 
 def dedupe_cycles(cycles: List[Cycle]) -> List[Cycle]:
     seen: Set[Tuple[NodeKey, ...]] = set()
     out: List[Cycle] = []
     for cycle in cycles:
-        key = tuple(sorted(cycle.nodes))
+        key = _canonical_nodes(cycle.nodes)
         if key in seen:
             continue
         seen.add(key)
