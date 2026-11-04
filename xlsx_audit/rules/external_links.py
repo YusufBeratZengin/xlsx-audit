@@ -8,63 +8,23 @@ Two different leaks matter:
   ``WEBSERVICE("https://...")``), which can exfiltrate cell values.
 
 Messages deliberately show a masked target: the local directory and any URL
-query string are removed before the finding is printed or written to JSON.
+query string are removed before the finding is printed or written to JSON.  The
+masking itself lives in :mod:`xlsx_audit.redact` and is applied to every
+finding by the model, not only to the ones this rule produces.
 """
 
 from __future__ import annotations
 
-import posixpath
 from typing import List
-from urllib.parse import urlsplit
 
 from ..formula_parser import FuncCall, Node, Ref, StringLit, iter_nodes
 from ..models import Cell, Diagnostic, Severity
+from ..redact import mask_formula, mask_target
 from .base import Context, Rule, dedupe
 
 __all__ = ["ExternalLinksRule", "mask_target"]
 
 NETWORK_FUNCTIONS = {"WEBSERVICE", "FILTERXML", "RTD", "STOCKHISTORY"}
-
-
-def mask_target(target: str) -> str:
-    """Keep the useful tail of a target, drop local directories and query strings."""
-    cleaned = target.strip()
-    if not cleaned:
-        return "<empty>"
-    lowered = cleaned.lower()
-    if lowered.startswith(("http://", "https://", "ftp://")):
-        parts = urlsplit(cleaned)
-        path = parts.path or "/"
-        if len(path) > 60:
-            path = "…" + path[-59:]
-        return f"{parts.scheme}://{parts.hostname or '?'}{path}"
-    if lowered.startswith("file:"):
-        cleaned = cleaned[5:]
-        cleaned = cleaned.lstrip("/")
-        cleaned = cleaned.replace("\\", "/")
-    normalised = cleaned.replace("\\", "/")
-    name = posixpath.basename(normalised.rstrip("/"))
-    if not name:
-        return "…"
-    directory = posixpath.dirname(normalised.rstrip("/"))
-    if directory:
-        return "…/" + name
-    return name
-
-
-def _mask_book_in_formula(formula: str, book: str) -> str:
-    """Replace an external workbook path inside a formula string with its masked target."""
-    target = mask_target(book)
-    if target == book:
-        return formula
-    out = formula.replace(f"[{book}]", f"[{target}]").replace(book, target)
-    forward = book.replace("\\", "/")
-    if forward != book:
-        out = out.replace(f"[{forward}]", f"[{target}]").replace(forward, target)
-    backward = book.replace("/", "\\")
-    if backward != book:
-        out = out.replace(f"[{backward}]", f"[{target}]").replace(backward, target)
-    return out
 
 
 class ExternalLinksRule(Rule):
@@ -115,12 +75,7 @@ class ExternalLinksRule(Rule):
             elif isinstance(node, FuncCall) and node.name in NETWORK_FUNCTIONS:
                 network_calls.add(node.name)
 
-        masked_formula = cell.formula
-        if masked_formula is not None:
-            for url in urls:
-                masked_formula = masked_formula.replace(url, mask_target(url))
-            for book in books:
-                masked_formula = _mask_book_in_formula(masked_formula, book)
+        masked_formula = mask_formula(cell.formula) if cell.formula is not None else None
 
         for book in sorted(books):
             masked_book = mask_target(book)

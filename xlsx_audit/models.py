@@ -6,6 +6,8 @@ from dataclasses import dataclass, field
 from enum import Enum
 from typing import Any, Dict, Iterable, Optional
 
+from .redact import mask_formula, mask_text
+
 
 class Severity(str, Enum):
     """How much a finding matters."""
@@ -43,6 +45,21 @@ class Diagnostic:
     params: Dict[str, str] = field(default_factory=dict)
 
     def __post_init__(self) -> None:
+        # Redact at construction time so every rule and every serialiser sees
+        # the same safe text: reports routinely travel to CI artefacts and
+        # code-scanning dashboards.
+        if self.formula is not None:
+            object.__setattr__(self, "formula", mask_formula(self.formula))
+        if self.value is not None:
+            object.__setattr__(self, "value", mask_text(self.value))
+        if self.detail is not None:
+            object.__setattr__(self, "detail", mask_text(self.detail))
+        if self.params:
+            object.__setattr__(
+                self, "params", {key: mask_text(value) for key, value in self.params.items()}
+            )
+        if self.message:
+            object.__setattr__(self, "message", mask_text(self.message))
         if not self.message and self.message_key:
             from .i18n import translator
 
@@ -86,11 +103,11 @@ class Diagnostic:
         if self.cell is not None:
             out["cell"] = self.cell
         if self.formula is not None:
-            out["formula"] = self.formula
+            out["formula"] = mask_formula(self.formula)
         if self.value is not None:
-            out["value"] = self.value
+            out["value"] = mask_text(self.value)
         if self.detail is not None:
-            out["detail"] = self.detail
+            out["detail"] = mask_text(self.detail)
         return out
 
 

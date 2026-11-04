@@ -10,6 +10,7 @@ from typing import Any, Dict, List, Tuple
 
 from . import __version__
 from .models import AuditReport, Diagnostic
+from .redact import mask_formula, mask_text
 
 __all__ = ["SARIF_RULES", "render_sarif", "sarif_document"]
 
@@ -74,9 +75,9 @@ def _result(diagnostic: Diagnostic, rule_index: Dict[str, int], uri: str) -> Dic
     if diagnostic.cell:
         properties["cell"] = diagnostic.cell
     if diagnostic.value:
-        properties["value"] = diagnostic.value
+        properties["value"] = mask_text(diagnostic.value)
     if diagnostic.formula:
-        properties["formula"] = diagnostic.formula
+        properties["formula"] = mask_formula(diagnostic.formula)
     return {
         "ruleId": diagnostic.code,
         "ruleIndex": rule_index[diagnostic.code],

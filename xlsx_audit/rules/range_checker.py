@@ -13,6 +13,7 @@ from typing import List, Optional, Set, Tuple
 
 from ..formula_parser import FuncCall, Node, Range, Ref, iter_nodes
 from ..models import Cell, Diagnostic, Severity
+from ..redact import mask_cell_value
 from ..refs import format_coordinate
 from .base import Context, Rule
 
@@ -97,7 +98,7 @@ class RangeCheckerRule(Rule):
             params={
                 "range": f"{sheet_name}!{bounds}",
                 "cell": coordinate,
-                "value": _short(target.value),
+                "value": mask_cell_value(target.value),
             },
             sheet=cell.sheet,
             cell=cell.coordinate,
@@ -105,13 +106,6 @@ class RangeCheckerRule(Rule):
             value=coordinate,
             detail=f"aggregate={bounds} candidate={sheet_name}!{coordinate}",
         )
-
-
-def _short(value: Optional[str], limit: int = 20) -> str:
-    text = (value or "").strip()
-    if len(text) > limit:
-        return text[: limit - 1] + "…"
-    return text
 
 
 def _direct_references(tree: Node, sheet: str) -> Set[Tuple[str, str]]:
